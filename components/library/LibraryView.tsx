@@ -11,7 +11,7 @@ import type { Playlist } from '@/lib/types'
 type Tab = 'playlists' | 'liked' | 'history'
 
 export function LibraryView() {
-  const { playlists, createPlaylist, setQueue, activeView, setActiveView, likes, history, clearHistory } = usePlayerStore()
+  const { playlists, createPlaylist, playContext, activeView, setActiveView, likes, history, clearHistory } = usePlayerStore()
   const [tab, setTab] = useState<Tab>('playlists')
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
@@ -111,7 +111,7 @@ export function LibraryView() {
                     : <svg viewBox="0 0 24 24" fill="currentColor" width="40" height="40" className="text-[#b3b3b3]/30"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
                   }
                   <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-3">
-                    <button onClick={e => { e.stopPropagation(); if (pl.tracks.length) setQueue(pl.tracks, 0) }}
+                    <button onClick={e => { e.stopPropagation(); if (pl.tracks.length) playContext(pl.tracks, 0) }}
                       className="w-10 h-10 rounded-full bg-[#1DB954] flex items-center justify-center shadow-lg">
                       <svg viewBox="0 0 24 24" fill="black" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>
                     </button>
@@ -136,7 +136,7 @@ export function LibraryView() {
         ) : (
           <div className="animate-fade-in">
             <div className="flex items-center gap-3 mb-4">
-              <button onClick={() => setQueue(likes, 0)}
+              <button onClick={() => playContext(likes, 0)}
                 className="w-12 h-12 rounded-full bg-[#1DB954] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg">
                 <svg viewBox="0 0 24 24" fill="black" width="20" height="20"><polygon points="5,3 19,12 5,21"/></svg>
               </button>
@@ -168,7 +168,7 @@ export function LibraryView() {
 
 // ── Playlist Detail ───────────────────────────────────────────
 function PlaylistDetail({ playlist, onBack }: { playlist: Playlist; onBack: () => void }) {
-  const { setQueue, deletePlaylist, removeFromPlaylist } = usePlayerStore()
+  const { playContext, deletePlaylist, removeFromPlaylist } = usePlayerStore()
 
   return (
     <div className="px-4 md:px-8 py-6 animate-fade-in">
@@ -192,7 +192,7 @@ function PlaylistDetail({ playlist, onBack }: { playlist: Playlist; onBack: () =
           <p className="text-[#b3b3b3] text-sm">{playlist.tracks.length} lagu</p>
           <div className="flex items-center gap-3 mt-5">
             <button
-              onClick={() => playlist.tracks.length && setQueue(playlist.tracks, 0)}
+              onClick={() => playlist.tracks.length && playContext(playlist.tracks, 0)}
               disabled={!playlist.tracks.length}
               className="w-12 h-12 rounded-full bg-[#1DB954] flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:opacity-40 shadow-lg"
             >
