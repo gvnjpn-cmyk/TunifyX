@@ -1,0 +1,138 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: 'Inter', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: #121212;
+  color: #fff;
+  font-family: var(--font-inter);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #535353; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #727272; }
+
+/* Custom range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  background: #535353;
+  height: 4px;
+  border-radius: 2px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #fff;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-top: -4px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.seek-bar:hover input[type="range"]::-webkit-slider-thumb,
+input[type="range"]:focus::-webkit-slider-thumb {
+  opacity: 1;
+}
+input[type="range"]::-moz-range-thumb {
+  background: #fff;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+}
+input[type="range"]::-moz-range-track {
+  background: #535353;
+  height: 4px;
+  border-radius: 2px;
+}
+
+/* Progress fill via CSS custom property */
+.seek-track {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: #535353;
+  cursor: pointer;
+}
+.seek-fill {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  border-radius: 2px;
+  background: #fff;
+  pointer-events: none;
+  transition: background 0.1s;
+}
+.seek-bar:hover .seek-fill { background: #1DB954; }
+.seek-dot {
+  position: absolute;
+  top: 50%;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.1s;
+  pointer-events: none;
+}
+.seek-bar:hover .seek-dot { transform: translate(-50%, -50%) scale(1); }
+
+/* Equalizer bars animation */
+.eq-bar {
+  display: inline-block;
+  width: 3px;
+  background: #1DB954;
+  border-radius: 1px;
+  animation: equalizer 1.2s ease infinite;
+}
+.eq-bar:nth-child(2) { animation-delay: 0.2s; }
+.eq-bar:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes equalizer {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1); }
+}
+
+/* Fade in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Slide up */
+@keyframes slideUp {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+.animate-fade-in  { animation: fadeIn  0.2s ease-out both; }
+.animate-slide-up { animation: slideUp 0.25s ease-out both; }
+
+/* Hide scrollbar but keep scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Full-height layout */
+#__next, .app-root { height: 100dvh; overflow: hidden; }
