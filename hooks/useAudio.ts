@@ -1,8 +1,7 @@
 'use client'
 // ─────────────────────────────────────────────────────────────
-// TunifyX v2 — useAudio hook
-// Engine: YouTube IFrame API (reliable, no CORS, works everywhere)
-// Singleton pattern — player survives page navigation
+// TunifyX v2 — useAudio
+// YouTube IFrame API engine — singleton, survives navigation
 // ─────────────────────────────────────────────────────────────
 
 import { useEffect, useRef, useCallback } from 'react'
@@ -17,7 +16,6 @@ declare global {
   }
 }
 
-// ── Boot YouTube IFrame API once ─────────────────────────────
 function loadYTScript() {
   if (typeof window === 'undefined') return
   if (document.getElementById('yt-iframe-api')) return
@@ -27,23 +25,24 @@ function loadYTScript() {
   document.head.appendChild(tag)
 }
 
-// ── Create hidden YT player container ────────────────────────
 function ensureContainer() {
   if (document.getElementById('yt-player-root')) return
-  const wrap = document.createElement('div')
-  wrap.id = 'yt-player-root'
+  const wrap  = document.createElement('div')
+  wrap.id     = 'yt-player-root'
   wrap.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;pointer-events:none;'
   const inner = document.createElement('div')
-  inner.id = 'yt-player-inner'
+  inner.id    = 'yt-player-inner'
   wrap.appendChild(inner)
   document.body.appendChild(wrap)
 }
 
-// ── Init YT Player ────────────────────────────────────────────
+let _progressTimer: ReturnType<typeof setInterval> | null = null
+
 function initPlayer(
-  onReady: () => void,
-  onState: (state: number) => void,
-  onProgress: (cur: number, dur: number) => void
+  onReady:    () => void,
+  onState:    (state: number) => void,
+  onProgress: (cur: number, dur: number) => void,
+  onError:    (code: number) => void,
 ) {
   ensureContainer()
   window._ytPlayer = new window.YT.Player('yt-player-inner', {
@@ -54,159 +53,172 @@ function initPlayer(
       playsinline: 1, rel: 0,
     },
     events: {
-      onReady: () => { window._ytReady = true; onReady() },
+      onReady:       () => { window._ytReady = true; onReady() },
       onStateChange: (e: any) => onState(e.data),
+      onError:       (e: any) => onError(e.data),
     },
   })
 
-  // Poll progress every 500ms (YT IFrame doesn't have timeupdate event)
-  setInterval(() => {
+  // Poll progress every 400ms
+  if (_progressTimer) clearInterval(_progressTimer)
+  _progressTimer = setInterval(() => {
     try {
       const p = window._ytPlayer
       if (!p || typeof p.getCurrentTime !== 'function') return
-      const cur = p.getCurrentTime() || 0
-      const dur = p.getDuration()    || 0
-      onProgress(cur, dur)
+      onProgress(p.getCurrentTime() || 0, p.getDuration() || 0)
     } catch {}
-  }, 500)
+  }, 400)
 }
 
-// ── Main hook ─────────────────────────────────────────────────
 export function useAudio() {
   const {
-    currentTrack, isPlaying, volume, isMuted, repeatMode,
+    currentTrack, isPlaying, volume, isMuted,
     setPlaying, setProgress, setDuration, setCurrentTime,
-    setLoading, setError, next,
+    setLoading, setError,
   } = usePlayerStore()
 
-  const readyRef = useRef(false)
+  const readyRef    = useRef(false)
+  const loadingRef  = useRef(false)   // prevent double-load
 
-  // ── Boot ─────────────────────────────────────────────────
+  // ── Boot ───────────────────────────────────────────────────
   useEffect(() => {
     if (typeof window === 'undefined') return
     loadYTScript()
 
     const boot = () => {
       if (readyRef.current) return
+      readyRef.current = true
+
       initPlayer(
         // onReady
         () => {
-          readyRef.current = true
-          // If a track was queued before player was ready, load it now
           const { currentTrack } = usePlayerStore.getState()
           if (currentTrack) {
             window._ytPlayer.loadVideoById(currentTrack.videoId)
           }
         },
         // onStateChange
-        (state: number) => {
+        (state) => {
           const YT = window.YT?.PlayerState
           if (!YT) return
-          if (state === YT.PLAYING)   { setPlaying(true);  setLoading(false) }
+          if (state === YT.PLAYING) {
+            setPlaying(true)
+            setLoading(false)
+            loadingRef.current = false
+          }
           if (state === YT.PAUSED)    { setPlaying(false); setLoading(false) }
           if (state === YT.BUFFERING) { setLoading(true) }
+          if (state === YT.CUED)      { setLoading(false) }
           if (state === YT.ENDED) {
             setPlaying(false)
+            setLoading(false)
             const { repeatMode } = usePlayerStore.getState()
             if (repeatMode === 'one') {
-              window._ytPlayer.seekTo(0)
-              window._ytPlayer.playVideo()
+              // seek to 0 and replay — no new load
+              try {
+                window._ytPlayer.seekTo(0, true)
+                window._ytPlayer.playVideo()
+              } catch {}
             } else {
               usePlayerStore.getState().next()
             }
           }
-          if (state === YT.CUED) { setLoading(false) }
-          // Error state (-1 = unstarted can be ok; 5 = HTML5 error)
         },
         // onProgress
         (cur, dur) => {
           setCurrentTime(cur)
           setDuration(dur)
           setProgress(dur > 0 ? (cur / dur) * 100 : 0)
+        },
+        // onError
+        (code) => {
+          setLoading(false)
+          loadingRef.current = false
+          // 101, 150 = embed blocked; 5 = HTML5 error; 2 = invalid id
+          if (code === 101 || code === 150) {
+            setError('Video tidak bisa diputar (embed diblokir). Coba lagu lain.')
+          } else {
+            setError(`Gagal memutar video (kode ${code}). Melewati...`)
+            // Auto-skip after error
+            setTimeout(() => {
+              setError(null)
+              usePlayerStore.getState().next()
+            }, 2000)
+          }
         }
       )
     }
 
-    if (window.YT?.Player) {
-      boot()
-    } else {
-      window.onYouTubeIframeAPIReady = boot
-    }
+    if (window.YT?.Player) { boot() }
+    else { window.onYouTubeIframeAPIReady = boot }
   }, [])
 
-  // ── Load new track ────────────────────────────────────────
+  // ── Load new track ─────────────────────────────────────────
   useEffect(() => {
     if (!currentTrack) return
+    if (loadingRef.current) return  // prevent double-load spam
+
+    loadingRef.current = true
     setLoading(true)
     setError(null)
 
     const load = () => {
       try {
         window._ytPlayer.loadVideoById(currentTrack.videoId)
-      } catch {}
+        // loadVideoById auto-plays
+      } catch {
+        loadingRef.current = false
+        setLoading(false)
+      }
     }
 
     if (window._ytReady && window._ytPlayer) {
       load()
     } else {
-      // Retry until ready
       const t = setInterval(() => {
         if (window._ytReady && window._ytPlayer) {
-          clearInterval(t)
-          load()
+          clearInterval(t); load()
         }
       }, 200)
       return () => clearInterval(t)
     }
   }, [currentTrack?.videoId])
 
-  // ── Play / Pause ──────────────────────────────────────────
+  // ── Play / Pause ───────────────────────────────────────────
   useEffect(() => {
     if (!window._ytReady || !window._ytPlayer) return
     try {
-      if (isPlaying) {
-        window._ytPlayer.playVideo()
-      } else {
-        window._ytPlayer.pauseVideo()
-      }
+      if (isPlaying) window._ytPlayer.playVideo()
+      else           window._ytPlayer.pauseVideo()
     } catch {}
   }, [isPlaying])
 
-  // ── Volume ────────────────────────────────────────────────
+  // ── Volume ─────────────────────────────────────────────────
   useEffect(() => {
     if (!window._ytReady || !window._ytPlayer) return
-    try {
-      const vol = isMuted ? 0 : Math.round(volume * 100)
-      window._ytPlayer.setVolume(vol)
-    } catch {}
+    try { window._ytPlayer.setVolume(isMuted ? 0 : Math.round(volume * 100)) } catch {}
   }, [volume, isMuted])
 
-  // ── Seek ──────────────────────────────────────────────────
+  // ── Seek ───────────────────────────────────────────────────
   const seek = useCallback((pct: number) => {
     try {
       const dur = window._ytPlayer?.getDuration() || 0
-      window._ytPlayer?.seekTo((pct / 100) * dur, true)
-      setCurrentTime((pct / 100) * dur)
+      const to  = (pct / 100) * dur
+      window._ytPlayer?.seekTo(to, true)
+      setCurrentTime(to)
+      setProgress(pct)
     } catch {}
   }, [])
 
-  // ── Keyboard shortcuts ────────────────────────────────────
+  // ── Keyboard shortcuts ─────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
-
-      if (e.code === 'Space') {
-        e.preventDefault()
-        const { isPlaying, setPlaying } = usePlayerStore.getState()
-        setPlaying(!isPlaying)
-      }
-      if (e.code === 'ArrowRight' && e.shiftKey) usePlayerStore.getState().next()
-      if (e.code === 'ArrowLeft'  && e.shiftKey) usePlayerStore.getState().prev()
-      if (e.code === 'KeyM') {
-        const { isMuted, setMuted } = usePlayerStore.getState()
-        setMuted(!isMuted)
-      }
+      if (e.code === 'Space')                       { e.preventDefault(); const s = usePlayerStore.getState(); s.setPlaying(!s.isPlaying) }
+      if (e.code === 'ArrowRight' && e.shiftKey)    usePlayerStore.getState().next()
+      if (e.code === 'ArrowLeft'  && e.shiftKey)    usePlayerStore.getState().prev()
+      if (e.code === 'KeyM')                        { const s = usePlayerStore.getState(); s.setMuted(!s.isMuted) }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
