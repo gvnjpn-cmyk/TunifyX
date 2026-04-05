@@ -19,7 +19,7 @@ function getGreeting() {
 }
 
 export function HomeView() {
-  const { setActiveView, history, setQueue, likes } = usePlayerStore()
+  const { setActiveView, history, playContext, likes } = usePlayerStore()
   const [trending, setTrending] = useState<Track[]>([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(false)
@@ -49,7 +49,7 @@ export function HomeView() {
             {history.slice(0, 6).map((track, i) => (
               <button
                 key={track.videoId}
-                onClick={() => setQueue(history, i)}
+                onClick={() => playContext(history, i)}
                 className="flex items-center gap-3 bg-white/10 hover:bg-white/15 active:bg-white/20 rounded-md overflow-hidden transition-all group"
               >
                 <img src={track.thumbnail} alt="" className="w-12 h-12 object-cover shrink-0" />
