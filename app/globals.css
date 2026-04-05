@@ -65,3 +65,9 @@ input[type="range"]::-moz-range-track { background: #404040; height: 4px; border
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px); }
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in-right { animation: slideInRight 0.25s ease-out both; }
