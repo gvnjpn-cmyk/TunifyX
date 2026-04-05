@@ -3,136 +3,65 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --font-inter: 'Inter', system-ui, sans-serif;
-}
+:root { --font-inter: 'Inter', system-ui, sans-serif; }
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+body { background: #121212; color: #fff; font-family: var(--font-inter); -webkit-font-smoothing: antialiased; }
 
-* { box-sizing: border-box; }
-
-html, body {
-  height: 100%;
-  overflow: hidden;
-}
-
-body {
-  background: #121212;
-  color: #fff;
-  font-family: var(--font-inter);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #535353; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #727272; }
+::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #606060; }
 
-/* Custom range slider */
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-  width: 100%;
-}
-input[type="range"]::-webkit-slider-runnable-track {
-  background: #535353;
-  height: 4px;
-  border-radius: 2px;
-}
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  background: #fff;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-top: -4px;
-  opacity: 0;
-  transition: opacity 0.1s;
-}
-.seek-bar:hover input[type="range"]::-webkit-slider-thumb,
-input[type="range"]:focus::-webkit-slider-thumb {
-  opacity: 1;
-}
-input[type="range"]::-moz-range-thumb {
-  background: #fff;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: none;
-}
-input[type="range"]::-moz-range-track {
-  background: #535353;
-  height: 4px;
-  border-radius: 2px;
-}
-
-/* Progress fill via CSS custom property */
 .seek-track {
-  position: relative;
-  height: 4px;
-  border-radius: 2px;
-  background: #535353;
-  cursor: pointer;
+  position: relative; height: 4px; border-radius: 99px;
+  background: #404040; cursor: pointer; transition: height 0.1s;
 }
+.seek-bar:hover .seek-track { height: 6px; }
 .seek-fill {
-  position: absolute;
-  top: 0; left: 0;
-  height: 100%;
-  border-radius: 2px;
-  background: #fff;
-  pointer-events: none;
-  transition: background 0.1s;
+  position: absolute; top: 0; left: 0; height: 100%;
+  border-radius: 99px; background: #b3b3b3; pointer-events: none; transition: background 0.15s;
 }
-.seek-bar:hover .seek-fill { background: #1DB954; }
+.seek-bar:hover .seek-fill,
+.seek-bar.is-dragging .seek-fill { background: #1DB954; }
 .seek-dot {
-  position: absolute;
-  top: 50%;
-  width: 12px; height: 12px;
-  border-radius: 50%;
-  background: #fff;
-  transform: translate(-50%, -50%) scale(0);
-  transition: transform 0.1s;
-  pointer-events: none;
+  position: absolute; top: 50%; width: 12px; height: 12px;
+  border-radius: 50%; background: #fff;
+  transform: translate(-50%, -50%) scale(0); pointer-events: none;
+  transition: transform 0.1s; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
-.seek-bar:hover .seek-dot { transform: translate(-50%, -50%) scale(1); }
+.seek-bar:hover .seek-dot,
+.seek-bar.is-dragging .seek-dot { transform: translate(-50%, -50%) scale(1); }
 
-/* Equalizer bars animation */
 .eq-bar {
-  display: inline-block;
-  width: 3px;
-  background: #1DB954;
-  border-radius: 1px;
-  animation: equalizer 1.2s ease infinite;
+  display: inline-block; width: 3px; background: #1DB954;
+  border-radius: 1px; animation: equalizer 1.2s ease infinite; transform-origin: bottom;
 }
-.eq-bar:nth-child(2) { animation-delay: 0.2s; }
-.eq-bar:nth-child(3) { animation-delay: 0.4s; }
+.eq-bar:nth-child(2) { animation-delay: 0.3s; }
+.eq-bar:nth-child(3) { animation-delay: 0.6s; }
+@keyframes equalizer { 0%,100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
 
-@keyframes equalizer {
-  0%, 100% { transform: scaleY(0.3); }
-  50%       { transform: scaleY(1); }
+input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { background: #404040; height: 4px; border-radius: 99px; }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+  background: #fff; margin-top: -4px; opacity: 0; transition: opacity 0.15s;
 }
+input[type="range"]:hover::-webkit-slider-thumb { opacity: 1; }
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: none; }
+input[type="range"]::-moz-range-track { background: #404040; height: 4px; border-radius: 99px; }
 
-/* Fade in */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* Slide up */
-@keyframes slideUp {
-  from { transform: translateY(8px); opacity: 0; }
-  to   { transform: translateY(0);   opacity: 1; }
-}
-
+@keyframes fadeIn   { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slideUp  { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes scaleIn  { from { opacity: 0; transform: scale(0.96) } to { opacity: 1; transform: scale(1) } }
+@keyframes shimmer  { 0% { background-position: -400px 0 } 100% { background-position: 400px 0 } }
 .animate-fade-in  { animation: fadeIn  0.2s ease-out both; }
 .animate-slide-up { animation: slideUp 0.25s ease-out both; }
-
-/* Hide scrollbar but keep scroll */
+.animate-scale-in { animation: scaleIn 0.2s ease-out both; }
+.skeleton {
+  background: linear-gradient(90deg,#282828 25%,#333 50%,#282828 75%);
+  background-size: 400px 100%; animation: shimmer 1.4s ease infinite;
+}
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* Full-height layout */
-#__next, .app-root { height: 100dvh; overflow: hidden; }
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px); }
