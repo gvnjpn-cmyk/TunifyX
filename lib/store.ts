@@ -1,36 +1,42 @@
 'use client'
 // ─────────────────────────────────────────────────────────────
-// TunifyX — Global Player Store (Zustand)
-// Handles all playback state: queue, track, controls
+// TunifyX v2 — Global Store (Zustand)
 // ─────────────────────────────────────────────────────────────
 
 import { create } from 'zustand'
-import type { Track, PlayerState, Playlist } from './types'
+import type { Track, Playlist } from './types'
 import { generateId } from './utils'
 
-// ── LocalStorage helpers ─────────────────────────────────────
-function loadPlaylists(): Playlist[] {
-  if (typeof window === 'undefined') return []
-  try { return JSON.parse(localStorage.getItem('tunifyx_playlists') || '[]') } catch { return [] }
-}
-function savePlaylists(playlists: Playlist[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem('tunifyx_playlists', JSON.stringify(playlists))
-}
-function loadHistory(): Track[] {
-  if (typeof window === 'undefined') return []
-  try { return JSON.parse(localStorage.getItem('tunifyx_history') || '[]') } catch { return [] }
-}
-function saveHistory(tracks: Track[]) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem('tunifyx_history', JSON.stringify(tracks.slice(0, 30)))
+// ── LocalStorage ──────────────────────────────────────────────
+const ls = {
+  get: (k: string) => { try { return JSON.parse(localStorage.getItem(k) || 'null') } catch { return null } },
+  set: (k: string, v: any) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} },
 }
 
-// ── Player Store ─────────────────────────────────────────────
-interface PlayerStore extends PlayerState {
+function initFromLS<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback
+  return ls.get(key) ?? fallback
+}
+
+// ── Types ─────────────────────────────────────────────────────
+interface PlayerStore {
+  // Playback
+  currentTrack:  Track | null
+  queue:         Track[]
+  queueIndex:    number
+  isPlaying:     boolean
+  progress:      number
+  duration:      number
+  currentTime:   number
+  volume:        number
+  isMuted:       boolean
+  isShuffle:     boolean
+  repeatMode:    'off' | 'one' | 'all'
+  isLoading:     boolean
+  error:         string | null
+
   // Actions
   setQueue:        (tracks: Track[], index?: number) => void
-  playTrack:       (track: Track) => void
   addToQueue:      (track: Track) => void
   removeFromQueue: (index: number) => void
   next:            () => void
@@ -43,64 +49,56 @@ interface PlayerStore extends PlayerState {
   setMuted:        (v: boolean) => void
   toggleShuffle:   () => void
   toggleRepeat:    () => void
-  setStreamUrl:    (url: string | null) => void
   setLoading:      (v: boolean) => void
   setError:        (msg: string | null) => void
 
-  // Playlist actions
-  playlists:       Playlist[]
-  createPlaylist:  (name: string) => Playlist
-  deletePlaylist:  (id: string) => void
-  addToPlaylist:   (playlistId: string, track: Track) => void
+  // Likes
+  likes:        Track[]
+  toggleLike:   (track: Track) => void
+  isLiked:      (videoId: string) => boolean
+
+  // Playlists
+  playlists:          Playlist[]
+  createPlaylist:     (name: string) => Playlist
+  deletePlaylist:     (id: string) => void
+  addToPlaylist:      (playlistId: string, track: Track) => boolean
   removeFromPlaylist: (playlistId: string, videoId: string) => void
 
   // History
-  history:         Track[]
-  addToHistory:    (track: Track) => void
+  history:      Track[]
+  addToHistory: (track: Track) => void
+  clearHistory: () => void
 
   // UI
-  isFullscreen:    boolean
-  setFullscreen:   (v: boolean) => void
-  activeView:      string
-  setActiveView:   (v: string) => void
+  isFullscreen: boolean
+  setFullscreen: (v: boolean) => void
+  activeView:   string
+  setActiveView: (v: string) => void
+  showQueue:    boolean
+  setShowQueue: (v: boolean) => void
 }
 
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
-  // ── Initial state ──────────────────────────────────────────
-  currentTrack:  null,
-  queue:         [],
-  queueIndex:    -1,
-  isPlaying:     false,
-  progress:      0,
-  duration:      0,
-  currentTime:   0,
-  volume:        0.8,
-  isMuted:       false,
-  isShuffle:     false,
-  repeatMode:    'off',
-  streamUrl:     null,
-  isLoading:     false,
-  error:         null,
-  playlists:     loadPlaylists(),
-  history:       loadHistory(),
-  isFullscreen:  false,
-  activeView:    'home',
+  // ── Playback state ────────────────────────────────────────
+  currentTrack: null,
+  queue:        [],
+  queueIndex:   -1,
+  isPlaying:    false,
+  progress:     0,
+  duration:     0,
+  currentTime:  0,
+  volume:       initFromLS('tx_volume', 0.8),
+  isMuted:      false,
+  isShuffle:    false,
+  repeatMode:   initFromLS('tx_repeat', 'off') as 'off'|'one'|'all',
+  isLoading:    false,
+  error:        null,
 
-  // ── Playback ───────────────────────────────────────────────
+  // ── Queue ──────────────────────────────────────────────────
   setQueue(tracks, index = 0) {
-    set({ queue: tracks, queueIndex: index, currentTrack: tracks[index] || null })
-  },
-
-  playTrack(track) {
-    const { queue } = get()
-    const idx = queue.findIndex(t => t.videoId === track.videoId)
-    if (idx >= 0) {
-      set({ queueIndex: idx, currentTrack: track, streamUrl: null })
-    } else {
-      const newQueue = [...queue, track]
-      set({ queue: newQueue, queueIndex: newQueue.length - 1, currentTrack: track, streamUrl: null })
-    }
-    get().addToHistory(track)
+    const track = tracks[index]
+    set({ queue: tracks, queueIndex: index, currentTrack: track, isPlaying: true, progress: 0, currentTime: 0, error: null })
+    if (track) get().addToHistory(track)
   },
 
   addToQueue(track) {
@@ -111,98 +109,127 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   removeFromQueue(index) {
     const { queue, queueIndex } = get()
-    const newQueue = queue.filter((_, i) => i !== index)
-    const newIdx   = index < queueIndex ? queueIndex - 1 : queueIndex
-    set({ queue: newQueue, queueIndex: Math.min(newIdx, newQueue.length - 1) })
+    const next = queue.filter((_, i) => i !== index)
+    const ni   = index < queueIndex ? queueIndex - 1 : Math.min(queueIndex, next.length - 1)
+    set({ queue: next, queueIndex: ni })
   },
 
   next() {
     const { queue, queueIndex, isShuffle, repeatMode } = get()
     if (!queue.length) return
-
-    let nextIdx: number
+    let idx: number
     if (repeatMode === 'one') {
-      nextIdx = queueIndex
+      idx = queueIndex
     } else if (isShuffle) {
-      do { nextIdx = Math.floor(Math.random() * queue.length) }
-      while (nextIdx === queueIndex && queue.length > 1)
+      do { idx = Math.floor(Math.random() * queue.length) }
+      while (idx === queueIndex && queue.length > 1)
     } else {
-      nextIdx = queueIndex + 1
-      if (nextIdx >= queue.length) {
-        nextIdx = repeatMode === 'all' ? 0 : -1
-      }
+      idx = queueIndex + 1
+      if (idx >= queue.length) idx = repeatMode === 'all' ? 0 : -1
     }
-
-    if (nextIdx < 0) {
-      set({ isPlaying: false })
-      return
-    }
-    set({ queueIndex: nextIdx, currentTrack: queue[nextIdx], streamUrl: null })
-    get().addToHistory(queue[nextIdx])
+    if (idx < 0) { set({ isPlaying: false }); return }
+    set({ queueIndex: idx, currentTrack: queue[idx], progress: 0, currentTime: 0, isPlaying: true })
+    get().addToHistory(queue[idx])
   },
 
   prev() {
     const { queue, queueIndex, currentTime } = get()
     if (!queue.length) return
-    // If >3s in, restart current track
     if (currentTime > 3) {
+      // restart current
+      try { (window as any)._ytPlayer?.seekTo(0, true) } catch {}
       set({ currentTime: 0, progress: 0 })
       return
     }
-    const prevIdx = Math.max(0, queueIndex - 1)
-    set({ queueIndex: prevIdx, currentTrack: queue[prevIdx], streamUrl: null })
+    const idx = Math.max(0, queueIndex - 1)
+    set({ queueIndex: idx, currentTrack: queue[idx], progress: 0, currentTime: 0, isPlaying: true })
   },
 
   setPlaying:    (v) => set({ isPlaying: v }),
   setProgress:   (v) => set({ progress: v }),
   setDuration:   (v) => set({ duration: v }),
   setCurrentTime:(v) => set({ currentTime: v }),
-  setVolume:     (v) => set({ volume: v, isMuted: v === 0 }),
   setMuted:      (v) => set({ isMuted: v }),
-  setStreamUrl:  (url) => set({ streamUrl: url }),
   setLoading:    (v) => set({ isLoading: v }),
-  setError:      (msg) => set({ error: msg }),
+  setError:      (v) => set({ error: v }),
+
+  setVolume(v) {
+    set({ volume: v, isMuted: v === 0 })
+    ls.set('tx_volume', v)
+  },
 
   toggleShuffle() { set(s => ({ isShuffle: !s.isShuffle })) },
+
   toggleRepeat() {
-    set(s => ({
-      repeatMode: s.repeatMode === 'off' ? 'all' : s.repeatMode === 'all' ? 'one' : 'off'
-    }))
+    set(s => {
+      const next = s.repeatMode === 'off' ? 'all' : s.repeatMode === 'all' ? 'one' : 'off'
+      ls.set('tx_repeat', next)
+      return { repeatMode: next }
+    })
+  },
+
+  // ── Likes ─────────────────────────────────────────────────
+  likes: initFromLS('tx_likes', []),
+
+  toggleLike(track) {
+    const { likes } = get()
+    const exists = likes.some(t => t.videoId === track.videoId)
+    const next   = exists ? likes.filter(t => t.videoId !== track.videoId) : [track, ...likes]
+    set({ likes: next })
+    ls.set('tx_likes', next)
+  },
+
+  isLiked(videoId) {
+    return get().likes.some(t => t.videoId === videoId)
   },
 
   // ── Playlists ──────────────────────────────────────────────
+  playlists: initFromLS('tx_playlists', []),
+
   createPlaylist(name) {
     const pl: Playlist = { id: generateId(), name, tracks: [], createdAt: Date.now() }
     const next = [...get().playlists, pl]
-    set({ playlists: next }); savePlaylists(next)
+    set({ playlists: next }); ls.set('tx_playlists', next)
     return pl
   },
+
   deletePlaylist(id) {
     const next = get().playlists.filter(p => p.id !== id)
-    set({ playlists: next }); savePlaylists(next)
+    set({ playlists: next }); ls.set('tx_playlists', next)
   },
+
   addToPlaylist(playlistId, track) {
     const playlists = get().playlists.map(p => {
       if (p.id !== playlistId) return p
       if (p.tracks.some(t => t.videoId === track.videoId)) return p
       return { ...p, tracks: [...p.tracks, track] }
     })
-    set({ playlists }); savePlaylists(playlists)
+    set({ playlists }); ls.set('tx_playlists', playlists)
+    return true
   },
+
   removeFromPlaylist(playlistId, videoId) {
     const playlists = get().playlists.map(p =>
       p.id !== playlistId ? p : { ...p, tracks: p.tracks.filter(t => t.videoId !== videoId) }
     )
-    set({ playlists }); savePlaylists(playlists)
+    set({ playlists }); ls.set('tx_playlists', playlists)
   },
 
-  // ── History ────────────────────────────────────────────────
+  // ── History ───────────────────────────────────────────────
+  history: initFromLS('tx_history', []),
+
   addToHistory(track) {
     const h = [track, ...get().history.filter(t => t.videoId !== track.videoId)].slice(0, 30)
-    set({ history: h }); saveHistory(h)
+    set({ history: h }); ls.set('tx_history', h)
   },
 
-  // ── UI ─────────────────────────────────────────────────────
+  clearHistory() { set({ history: [] }); ls.set('tx_history', []) },
+
+  // ── UI ────────────────────────────────────────────────────
+  isFullscreen: false,
   setFullscreen: (v) => set({ isFullscreen: v }),
+  activeView:   'home',
   setActiveView: (v) => set({ activeView: v }),
+  showQueue:    false,
+  setShowQueue: (v) => set({ showQueue: v }),
 }))
