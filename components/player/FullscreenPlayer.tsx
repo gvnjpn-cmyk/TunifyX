@@ -8,10 +8,11 @@ import { usePlayerStore } from '@/lib/store'
 import { useAudio } from '@/hooks/useAudio'
 import { cn } from '@/lib/utils'
 import { SeekBar } from './PlayerBar'
-import { QueuePanel } from './QueuePanel'
+import { QueuePanel }  from './QueuePanel'
+import { LyricsView }  from './LyricsView'
 import { toast } from '@/components/ui/Toast'
 
-type Tab = 'player' | 'queue'
+type Tab = 'player' | 'lyrics' | 'queue'
 
 export function FullscreenPlayer() {
   const {
@@ -31,7 +32,7 @@ export function FullscreenPlayer() {
   const touchStartY = useRef(0)
   const onTouchStart = (e: React.TouchEvent) => { touchStartY.current = e.touches[0].clientY }
   const onTouchEnd   = (e: React.TouchEvent) => {
-    if (tab !== 'player') return
+    if (tab !== 'player') return  // don't close while on lyrics/queue tabs
     if (e.changedTouches[0].clientY - touchStartY.current > 80) setFullscreen(false)
   }
 
@@ -83,6 +84,15 @@ export function FullscreenPlayer() {
               )}
             >
               Sekarang
+            </button>
+            <button
+              onClick={() => setTab('lyrics')}
+              className={cn(
+                'px-4 py-1 rounded-full text-xs font-semibold transition-all',
+                tab === 'lyrics' ? 'bg-white text-black' : 'text-white/60 hover:text-white'
+              )}
+            >
+              Lirik
             </button>
             <button
               onClick={() => setTab('queue')}
@@ -274,6 +284,13 @@ export function FullscreenPlayer() {
                 Cari lagu lain
               </button>
             </div>
+          </div>
+        )}
+
+        {/* ── Lyrics Tab ── */}
+        {tab === 'lyrics' && (
+          <div className="flex-1 overflow-hidden">
+            <LyricsView track={currentTrack} isActive={tab === 'lyrics'} />
           </div>
         )}
 
