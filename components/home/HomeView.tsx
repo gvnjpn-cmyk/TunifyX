@@ -11,6 +11,7 @@ import { GridCard } from '@/components/search/TrackCard'
 import { GridCardSkeleton } from '@/components/ui/Skeleton'
 import { MOOD_PRESETS } from '@/lib/utils'
 import type { Track } from '@/lib/types'
+import { ResumeCard } from './ResumeCard'
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -116,6 +117,9 @@ export function HomeView() {
   return (
     <div className="px-4 md:px-8 py-6 space-y-8 animate-fade-in">
       <h1 className="text-2xl md:text-3xl font-bold">{getGreeting()}</h1>
+
+      {/* ── Resume Card ── */}
+      <ResumeCard />
 
       {/* Quick picks — recent history as pill buttons */}
       {history.length > 0 && (
