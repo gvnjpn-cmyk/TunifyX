@@ -71,3 +71,24 @@ input[type="range"]::-moz-range-track { background: #404040; height: 4px; border
   to   { transform: translateX(0);    opacity: 1; }
 }
 .animate-slide-in-right { animation: slideInRight 0.25s ease-out both; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-down { animation: slideDown 0.2s ease-out both; }
+
+/* Loading bar animation for YT player init */
+@keyframes loadingBar {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(60%); }
+  100% { transform: translateX(200%); }
+}
+.animate-loading-bar { animation: loadingBar 1.5s ease-in-out infinite; }
+
+/* Slide down (for sidebar inline form) */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-down { animation: slideDown 0.2s ease-out both; }
