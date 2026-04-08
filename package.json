@@ -7,9 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:cf": "npx @cloudflare/next-on-pages",
-    "preview:cf": "npx wrangler pages dev .vercel/output/static"
-  },
+  }
   "dependencies": {
     "next": "14.2.5",
     "react": "^18",
