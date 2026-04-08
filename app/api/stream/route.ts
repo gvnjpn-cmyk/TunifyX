@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveStreamCached } from '@/lib/stream'
 
-export const runtime = 'nodejs'
+export const runtime = 'edge'
 // Vercel max duration for hobby: 10s, pro: 60s
-export const maxDuration = 10
 
 export async function GET(req: NextRequest) {
   const videoId = req.nextUrl.searchParams.get('videoId')?.trim()
