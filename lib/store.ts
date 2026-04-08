@@ -62,8 +62,12 @@ interface PlayerStore {
   playContext:       (tracks: Track[], index?: number) => void
   // Tambah ke upNext (tidak ganggu lagu sekarang)
   addToQueue:        (track: Track) => void
+  // Tambah ke posisi SELANJUTNYA di upNext (Play Next)
+  addNextInQueue:    (track: Track) => void
   // Tambah banyak sekaligus
   addManyToQueue:    (tracks: Track[]) => void
+  // Alias untuk playContext (backward compat)
+  setQueue:          (tracks: Track[], index?: number) => void
   // Hapus dari upNext by index
   removeFromUpNext:  (index: number) => void
   // Hapus dari context by index
@@ -157,6 +161,16 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   addToQueue(track) {
     // Allow duplicates — user intentionally added it
     set(s => ({ upNext: [...s.upNext, track] }))
+  },
+
+  addNextInQueue(track) {
+    // Insert at front of upNext — plays immediately after current song
+    set(s => ({ upNext: [track, ...s.upNext] }))
+  },
+
+  // Alias: setQueue = playContext (backward compat for older components)
+  setQueue(tracks, index = 0) {
+    get().playContext(tracks, index)
   },
 
   addManyToQueue(tracks) {
